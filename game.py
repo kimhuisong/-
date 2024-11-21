@@ -20,6 +20,7 @@ BLACK = (0, 0, 0)
 # 現在のスクリプトのディレクトリを取得
 current_dir = os.path.dirname(os.path.abspath(__file__))
 images_dir = os.path.join(current_dir, 'images')
+music_dir = os.path.join(current_dir,'music')
 
 if not os.path.exists(images_dir):
     print(f"画像ディレクトリが存在しません: {images_dir}")
@@ -53,6 +54,21 @@ try:
         house_images.append(house_image)
 except pygame.error as e:
     print(f"画像の読み込みに失敗しました: {e}")
+    sys.exit()
+
+#BGMの読み込み
+try:
+    pygame.mixer.music.load(os.path.join(music_dir, 'jinglebell.wav'))
+    pygame.mixer.music.play(-1)
+except pygame.error as e:
+    print(f"効果音の読み込みに失敗しました: {e}")
+    sys.exit()
+
+#効果音の読み込み
+try:
+    present_sound = pygame.mixer.Sound(os.path.join(music_dir,'throw.wav'))
+except pygame.error as e:
+    print(f"効果音の読み込みに失敗しました: {e}")
     sys.exit()
 
 # サンタの位置（固定）
@@ -130,17 +146,54 @@ def generate_house():
             houses.append(House(new_x))
             break
 
+# スタート画面用の背景画像を読み込み
+try:
+    start_background_image = pygame.image.load(os.path.join(images_dir, 'start_background.png'))
+    # 背景画像を画面サイズにフィットさせるようにスケーリング
+    bg_width, bg_height = start_background_image.get_size()
+    scale_ratio = min(screen_width / bg_width, screen_height / bg_height) * 1.2
+    new_width = int(bg_width * scale_ratio)
+    new_height = int(bg_height * scale_ratio)
+    start_background_image = pygame.transform.scale(start_background_image, (new_width, new_height))
+
+    start_santa_image = pygame.image.load(os.path.join(images_dir,'start_santa.png'))
+    start_santa_image = pygame.transform.scale(start_santa_image, (screen_width, screen_height))
+except pygame.error as e:
+    print(f"スタート画面用背景画像の読み込みに失敗しました: {e}")
+    sys.exit()
+
 # スタート画面
 def start_screen():
-    screen.fill(BLACK)
-    title_text = font.render("クリスマスゲームへようこそ!", True, WHITE)
-    instruction_text = font.render("欲しいプレゼントを投げて得点を稼ごう!", True, WHITE)
-    start_text = font.render("Enterキーで開始", True, WHITE)
-    screen.blit(title_text, (screen_width // 2 - title_text.get_width() // 2, screen_height // 2 - 50))
-    screen.blit(instruction_text, (screen_width // 2 - instruction_text.get_width() // 2, screen_height // 2))
-    screen.blit(start_text, (screen_width // 2 - start_text.get_width() // 2, screen_height // 2 + 50))
+    # 背景画像の描画
+    bg_width, bg_height = start_background_image.get_size()
+    bg_x = (screen_width - bg_width) // 2
+    bg_y = (screen_height - bg_height) // 2
+    screen.blit(start_background_image, (bg_x, bg_y))
+
+    screen.blit(start_santa_image, (0,0))
+    # 説明文のリスト
+    instructions = [
+        "ゲームの遊び方:",
+        "1. 欲しいプレゼントを家に届けよう",
+        "2. 各プレゼントに対応するキーを投げよう",
+        "        - 1: おもちゃ",
+        "        - 2: 漫画",
+        "        - 3: 洋服",
+        "        - 4: ゲーム",
+        "3. 制限時間: 60秒",
+    ]
+    text_y = screen_height // 2 - 150  # 白い部分の中央を基準に調整
+    for line in instructions:
+        text = font.render(line, True, BLACK)  # 黒文字で描画
+        screen.blit(text, (300, text_y))
+        text_y += 30  # 行間を空ける
+    start_text = font.render("Enterキーで開始", True, RED)
+    screen.blit(start_text, (400, text_y + 20))
+
+    # 描画を反映
     pygame.display.flip()
 
+    # 入力待ちループ
     waiting = True
     while waiting:
         for event in pygame.event.get():
@@ -148,7 +201,7 @@ def start_screen():
                 pygame.quit()
                 sys.exit()
             if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_RETURN:
+                if event.key == pygame.K_RETURN:  # Enterキーでゲーム開始
                     waiting = False
 
 # メインゲーム
@@ -172,12 +225,16 @@ def main_game():
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_1:
                     items.append(Item(santa_x + santa_image.get_width(), santa_y, toy_image, "toy"))
+                    present_sound.play()
                 elif event.key == pygame.K_2:
                     items.append(Item(santa_x + santa_image.get_width(), santa_y, comic_image, "comic"))
+                    present_sound.play()
                 elif event.key == pygame.K_3:
                     items.append(Item(santa_x + santa_image.get_width(), santa_y, clothes_image, "clothes"))
+                    present_sound.play()
                 elif event.key == pygame.K_4:
                     items.append(Item(santa_x + santa_image.get_width(), santa_y, game_image, "game"))
+                    present_sound.play()
 
         if random.randint(0, 100) < 5:
             generate_house()
