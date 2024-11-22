@@ -1,6 +1,7 @@
 import os
 import sys
 import pygame
+import math
 import random
 
 # 初期設定
@@ -32,7 +33,7 @@ try:
     background_image = pygame.transform.scale(background_image, (screen_width, screen_height))
 
     santa_image = pygame.image.load(os.path.join(images_dir, 'santa.png'))
-    santa_image = pygame.transform.scale(santa_image, (100, 100))
+    santa_image = pygame.transform.scale(santa_image, (200, 200))
 
     toy_image = pygame.image.load(os.path.join(images_dir, 'toy.png'))  # おもちゃ
     toy_image = pygame.transform.scale(toy_image, (50, 50))
@@ -73,7 +74,8 @@ except pygame.error as e:
 
 # サンタの位置（固定）
 santa_x = 50
-santa_y = screen_height // 2
+santa_y = 200
+
 
 # プレゼントの種類
 PRESENT_TYPES = {
@@ -99,15 +101,22 @@ except:
 game_duration = 60
 score = 0
 
+# サンタの回転動作に関する変数
+santa_rotation_angle = 0  # 現在の回転角度
+santa_is_throwing = False  # サンタが投げ動作中かどうか
+throw_start_time = 0  # 投げ動作の開始時間
+
 # アイテムクラス
 class Item:
-    def __init__(self, x, y, image, item_type):
+    def __init__(self, x, y, image, item_type, angle=-50, speed=10):
         self.x = x
         self.y = y
         self.image = image
         self.item_type = item_type
-        self.velocity_x = 7
-        self.velocity_y = 5
+
+        # 投げる角度と速度を基に水平・垂直速度を計算
+        self.velocity_x = speed * math.cos(math.radians(angle))
+        self.velocity_y = -speed * math.sin(math.radians(angle))
 
     def update(self):
         self.x += self.velocity_x
@@ -120,12 +129,12 @@ class Item:
 class House:
     def __init__(self, x):
         self.x = x
-        self.y = screen_height - 100
+        self.y = screen_height - 90
         self.image = random.choice(house_images)  # ランダムに家の画像を選択
         self.want = random.choice(list(PRESENT_TYPES.keys()))  # 欲しいプレゼントをランダムに選択
 
     def update(self):
-        self.x -= 5
+        self.x -= 3
 
     def draw(self, screen):
         screen.blit(self.image, (self.x, self.y))
@@ -186,7 +195,7 @@ def start_screen():
     for line in instructions:
         text = font.render(line, True, BLACK)  # 黒文字で描画
         screen.blit(text, (300, text_y))
-        text_y += 30  # 行間を空ける
+        text_y += 30
     start_text = font.render("Enterキーで開始", True, RED)
     screen.blit(start_text, (400, text_y + 20))
 
@@ -206,7 +215,7 @@ def start_screen():
 
 # メインゲーム
 def main_game():
-    global score
+    global score,santa_is_throwing, santa_rotation_angle, throw_start_time
     start_ticks = pygame.time.get_ticks()
     running = True
     while running:
@@ -222,19 +231,32 @@ def main_game():
             if event.type == pygame.QUIT:
                 pygame.quit()
                 sys.exit()
+
+            # キー入力処理
             if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_1:
-                    items.append(Item(santa_x + santa_image.get_width(), santa_y, toy_image, "toy"))
+                # アイテムを生成する位置を計算
+                item_start_x = santa_x + santa_image.get_width() - 20  # サンタ画像の右端付近
+                item_start_y = santa_y + santa_image.get_height() // 2 - 10  # サンタ画像の中央付近
+
+                if event.key in (pygame.K_1, pygame.K_2, pygame.K_3, pygame.K_4):
+                    # サンタが投げる動作
+                    santa_is_throwing = True
+                    santa_rotation_angle = -20  # サンタを少し左に傾ける
+                    throw_start_time = pygame.time.get_ticks()  # 投げ動作の開始時間
+
+                    # 投げるアイテムを生成
+                    if event.key == pygame.K_1:
+                        items.append(Item(item_start_x, item_start_y, toy_image, "toy"))
+                    elif event.key == pygame.K_2:
+                        items.append(Item(item_start_x, item_start_y, comic_image, "comic"))
+                    elif event.key == pygame.K_3:
+                        items.append(Item(item_start_x, item_start_y, clothes_image, "clothes"))
+                    elif event.key == pygame.K_4:
+                        items.append(Item(item_start_x, item_start_y, game_image, "game"))
+
+                    # 効果音を再生
                     present_sound.play()
-                elif event.key == pygame.K_2:
-                    items.append(Item(santa_x + santa_image.get_width(), santa_y, comic_image, "comic"))
-                    present_sound.play()
-                elif event.key == pygame.K_3:
-                    items.append(Item(santa_x + santa_image.get_width(), santa_y, clothes_image, "clothes"))
-                    present_sound.play()
-                elif event.key == pygame.K_4:
-                    items.append(Item(santa_x + santa_image.get_width(), santa_y, game_image, "game"))
-                    present_sound.play()
+
 
         if random.randint(0, 100) < 5:
             generate_house()
@@ -266,12 +288,22 @@ def main_game():
             if house in houses:
                 houses.remove(house)
 
-        screen.blit(santa_image, (santa_x, santa_y))
+        if santa_is_throwing:
+            rotated_santa_image = pygame.transform.rotate(santa_image, santa_rotation_angle)
+            rotated_rect = rotated_santa_image.get_rect(center=(santa_x + santa_image.get_width() // 2, santa_y + santa_image.get_height() // 2))
+            screen.blit(rotated_santa_image, rotated_rect.topleft)
 
-        time_text = font.render(f"Time: {remaining_time}", True, RED)
-        score_text = font.render(f"Score: {score}", True, RED)
+            if pygame.time.get_ticks() - throw_start_time > 300:
+                santa_is_throwing = False
+                santa_rotation_angle = 0
+        else:
+            screen.blit(santa_image, (santa_x, santa_y))
+
+
+        time_text = font.render(f"[Time]: {remaining_time}", True, WHITE)
+        score_text = font.render(f"[Score]: {score}", True, WHITE)
         screen.blit(time_text, (10, 10))
-        screen.blit(score_text, (10, 50))
+        screen.blit(score_text, (180, 10))
 
         pygame.display.flip()
         pygame.time.Clock().tick(60)
@@ -280,15 +312,31 @@ def main_game():
 
 # ゲームオーバー画面
 def game_over_screen():
-    screen.fill(WHITE)
-    end_text = font.render("ゲーム終了！", True, RED)
-    score_text = font.render(f"最終スコア: {score}", True, RED)
-    restart_text = font.render("もう一度プレイするにはRキーを押してください", True, BLACK)
-    screen.blit(end_text, (screen_width // 2 - end_text.get_width() // 2, screen_height // 2 - 60))
-    screen.blit(score_text, (screen_width // 2 - score_text.get_width() // 2, screen_height // 2))
-    screen.blit(restart_text, (screen_width // 2 - restart_text.get_width() // 2, screen_height // 2 + 60))
+    # 背景画像を描画
+    bg_width, bg_height = start_background_image.get_size()
+    bg_x = (screen_width - bg_width) // 2
+    bg_y = (screen_height - bg_height) // 2
+    screen.blit(start_background_image, (bg_x, bg_y))
+
+    # ゲームオーバー画面の説明文
+    instructions = [
+        "ゲーム終了！",
+        f"最終スコア: {score}",
+        "もう一度プレイするにはRキーを押してください",
+    ]
+
+    # 説明文の描画位置を計算
+    text_y = screen_height // 2 - 60  # 中央付近に配置
+    for line in instructions:
+        text_color = RED if line.startswith("ゲーム終了") or line.startswith("最終スコア") else WHITE
+        text = font.render(line, True, text_color)
+        screen.blit(text, (screen_width // 2 - text.get_width() // 2, text_y))
+        text_y += 40  # 行間を調整
+
+    # 描画を反映
     pygame.display.flip()
 
+    # 入力待ちループ
     waiting = True
     while waiting:
         for event in pygame.event.get():
@@ -299,6 +347,7 @@ def game_over_screen():
                 if event.key == pygame.K_r:
                     waiting = False
                     main_game()
+
 
 # 実行
 start_screen()
