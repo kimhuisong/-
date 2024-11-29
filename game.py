@@ -171,15 +171,85 @@ except pygame.error as e:
     print(f"スタート画面用背景画像の読み込みに失敗しました: {e}")
     sys.exit()
 
-# スタート画面
+# スコアランキングファイル
+score_file = os.path.join(current_dir, "scores.txt")
+
+def load_scores():
+    if not os.path.exists(score_file):
+        return []
+    with open(score_file, "r") as f:
+        scores = []
+        for line in f.readlines():
+            parts = line.strip().split(":")
+            if len(parts) == 2:  # データが "name:score" の形式であるかを確認
+                name, score = parts
+                try:
+                    scores.append((name, int(score)))
+                except ValueError:
+                    continue  # スコアが整数でない場合はスキップ
+        return scores
+
+
+# スコアランキングの保存
+def save_scores(new_score):
+    scores = load_scores()
+    scores.append(("Player", new_score))  # 仮の名前として "Player" を使用
+    scores = sorted(scores, key=lambda x: x[1], reverse=True)[:5]  # トップ5を保持
+    with open(score_file, "w") as f:
+        for name, score in scores:
+            f.write(f"{name}:{score}\n")
+
+
 def start_screen():
+    # 1. ランキング表示ページ
+    show_ranking_screen()
+
+    # 2. 遊び方説明ページ
+    show_instructions_screen()
+
+def show_ranking_screen():
     # 背景画像の描画
     bg_width, bg_height = start_background_image.get_size()
     bg_x = (screen_width - bg_width) // 2
     bg_y = (screen_height - bg_height) // 2
     screen.blit(start_background_image, (bg_x, bg_y))
 
-    screen.blit(start_santa_image, (0,0))
+    # ランキングの表示
+    scores = load_scores()
+    title_text = font.render("ランキング", True, RED)
+    screen.blit(title_text, (screen_width // 2 - title_text.get_width() // 2, screen_height // 4))
+
+    rank_text_y = screen_height // 4 + 50
+    for rank, (name, score) in enumerate(scores, 1):
+        rank_line = f"{rank}. {name} - {score} 点"
+        text = font.render(rank_line, True, BLACK)
+        screen.blit(text, (screen_width // 2 - text.get_width() // 2, rank_text_y))
+        rank_text_y += 40
+
+    next_text = font.render("スペースキーで次へ進む", True, RED)
+    screen.blit(next_text, (screen_width // 2 - next_text.get_width() // 2, screen_height - 100))
+
+    # 描画を反映
+    pygame.display.flip()
+
+    # 入力待ちループ
+    waiting = True
+    while waiting:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_SPACE:  # スペースキーで次に進む
+                    waiting = False
+
+def show_instructions_screen():
+    # 背景画像の描画
+    bg_width, bg_height = start_background_image.get_size()
+    bg_x = (screen_width - bg_width) // 2
+    bg_y = (screen_height - bg_height) // 2
+    screen.blit(start_background_image, (bg_x, bg_y))
+
     # 説明文のリスト
     instructions = [
         "ゲームの遊び方:",
@@ -196,6 +266,7 @@ def start_screen():
         text = font.render(line, True, BLACK)  # 黒文字で描画
         screen.blit(text, (300, text_y))
         text_y += 30
+
     start_text = font.render("Enterキーで開始", True, RED)
     screen.blit(start_text, (400, text_y + 20))
 
@@ -212,6 +283,7 @@ def start_screen():
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_RETURN:  # Enterキーでゲーム開始
                     waiting = False
+
 
 # メインゲーム
 def main_game():
@@ -310,8 +382,12 @@ def main_game():
 
     game_over_screen()
 
-# ゲームオーバー画面
 def game_over_screen():
+    global score
+
+    # スコアをランキングに記録
+    save_scores(score)
+
     # 背景画像を描画
     bg_width, bg_height = start_background_image.get_size()
     bg_x = (screen_width - bg_width) // 2
@@ -346,7 +422,7 @@ def game_over_screen():
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_r:
                     waiting = False
-                    main_game()
+                    start_screen()  # スタート画面に戻る
 
 
 # 実行
