@@ -44,6 +44,9 @@ try:
     game_image = pygame.image.load(os.path.join(images_dir, 'game.png'))  # ゲーム
     game_image = pygame.transform.scale(game_image, (50, 50))
 
+
+
+
     # 家の画像をリストに格納
     house_images = []
     for i in range(1, 5):
@@ -130,7 +133,7 @@ class House:
         self.want = random.choice(list(PRESENT_TYPES.keys()))  # 欲しいプレゼントをランダムに選択
 
     def update(self):
-        self.x -= 3
+        self.x -= 2
 
     def draw(self, screen):
         # 家の画像を描画
@@ -182,62 +185,107 @@ except pygame.error as e:
 # スコアランキングファイル
 score_file = os.path.join(current_dir, "scores.txt")
 
+# スコアをロードする関数
 def load_scores():
     if not os.path.exists(score_file):
         return []
-    with open(score_file, "r") as f:
-        scores = []
-        for line in f.readlines():
-            parts = line.strip().split(":")
-            if len(parts) == 2:  # データが "name:score" の形式であるかを確認
-                name, score = parts
-                try:
-                    scores.append((name, int(score)))
-                except ValueError:
-                    continue  # スコアが整数でない場合はスキップ
-        return scores
+    with open(score_file, "r", encoding="utf-8") as f:
+        lines = f.readlines()
+    return [int(line.strip()) for line in lines if line.strip()]
 
-
-# スコアランキングの保存
+# スコアを保存する関数
 def save_scores(new_score):
     scores = load_scores()
-    scores.append(("Player", new_score))  # 仮の名前として "Player" を使用
-    scores = sorted(scores, key=lambda x: x[1], reverse=True)[:5]  # トップ5を保持
-    with open(score_file, "w") as f:
-        for name, score in scores:
-            f.write(f"{name}:{score}\n")
+    scores.append(new_score)
+    scores = sorted(scores, reverse=True)[:5]  # トップ5を保持
+    with open(score_file, "w", encoding="utf-8") as f:
+        for score in scores:
+            f.write(f"{score}\n")
 
-
+# スタート画面
 def start_screen():
     # 1. ランキング表示ページ
     show_ranking_screen()
-
     # 2. 遊び方説明ページ
     show_instructions_screen()
 
 def show_ranking_screen():
+    # メダル画像の読み込み
+    gold_medal = pygame.image.load(os.path.join(images_dir, "Gold_medal.png"))
+    silver_medal = pygame.image.load(os.path.join(images_dir, "Silver_medal.png"))
+    bronze_medal = pygame.image.load(os.path.join(images_dir, "Bronz_medal.png"))
+
+    # メダル画像をスケール調整
+    medal_size = (50, 50)
+    gold_medal = pygame.transform.scale(gold_medal, medal_size)
+    silver_medal = pygame.transform.scale(silver_medal, medal_size)
+    bronze_medal = pygame.transform.scale(bronze_medal, medal_size)
+
     # 背景画像の描画
     bg_width, bg_height = start_background_image.get_size()
     bg_x = (screen_width - bg_width) // 2
     bg_y = (screen_height - bg_height) // 2
     screen.blit(start_background_image, (bg_x, bg_y))
 
-    # ランキングの表示
+    # 背景画像の上に半透明の黒いレイヤーを追加
+    dark_overlay = pygame.Surface((screen_width, screen_height))
+    dark_overlay.set_alpha(80)  # 透明度（0〜255、値が大きいほど不透明）
+    dark_overlay.fill((0, 0, 0))  # 黒いレイヤー
+    screen.blit(dark_overlay, (0, 0))
+
+    # ランキングタイトル
+    title_font = pygame.font.SysFont("meiryo", 50, bold=True)
+    title_text = title_font.render("ランキング", True, WHITE)
+    screen.blit(title_text, (screen_width // 2 - title_text.get_width() // 2, screen_height // 10))
+
+    # ランキングデータをロード
     scores = load_scores()
-    title_text = font.render("ランキング", True, WHITE)
-    screen.blit(title_text, (screen_width // 2 - title_text.get_width() // 2, screen_height // 4))
+    if not scores:  # スコアがない場合はデフォルトの0を表示
+        scores = [0, 0, 0, 0, 0]
 
-    rank_text_y = screen_height // 4 + 50
-    for rank, (name, score) in enumerate(scores, 1):
-        rank_line = f"{rank}. {name} - {score} 点"
-        text = font.render(rank_line, True, BLACK)
-        screen.blit(text, (screen_width // 2 - text.get_width() // 2, rank_text_y))
-        rank_text_y += 40
+    # ランキングのフォントサイズ設定
+    font_sizes = [40, 30, 30, 24, 24]  # 1位～5位のフォントサイズ
+    y_positions = [screen_height // 4, screen_height // 4 + 70, screen_height // 4 + 140, screen_height // 4 + 210, screen_height // 4 + 260]
 
-    next_text = font.render("スペースキーで次へ進む", True, WHITE)
-    screen.blit(next_text, (screen_width // 2 - next_text.get_width() // 2, screen_height - 150))
+    # 順位ごとの色設定（1位～3位に金・銀・銅色を適用）
+    colors = [
+        (255, 215, 0),  # 金色
+        (192, 192, 192),  # 銀色
+        (205, 127, 50),  # 銅色
+        WHITE,  # 4位以降は白色
+        WHITE,
+    ]
 
-    # 描画を反映
+    # ランキングリストの表示
+    for i, score in enumerate(scores[:5]):  # 上位5位を表示
+        rank_font = pygame.font.SysFont("meiryo", font_sizes[i], bold=True)
+        rank_text = rank_font.render(f"{i + 1}位: {score}", True, colors[i])
+
+        # メダルの位置
+        medal_x = screen_width // 4  # メダルは左側に表示
+        medal_y = y_positions[i] - 10  # 少し調整して中央に揃える
+
+        # スコアテキストの位置
+        score_x = medal_x + 60  # メダルの右側にスコアを表示
+        score_y = y_positions[i]
+
+        # メダルを描画
+        if i == 0:
+            screen.blit(gold_medal, (medal_x, medal_y))
+        elif i == 1:
+            screen.blit(silver_medal, (medal_x, medal_y))
+        elif i == 2:
+            screen.blit(bronze_medal, (medal_x, medal_y))
+
+        # スコアテキストを描画
+        screen.blit(rank_text, (score_x, score_y))
+
+    # スタート画面に戻るメッセージ
+    return_text = pygame.font.SysFont("meiryo", 30, bold=True).render(
+        "Enterキーでスタート画面に戻る", True, RED
+    )
+    screen.blit(return_text, (screen_width // 2 - return_text.get_width() // 2, screen_height - 130))
+
     pygame.display.flip()
 
     # 入力待ちループ
@@ -248,7 +296,7 @@ def show_ranking_screen():
                 pygame.quit()
                 sys.exit()
             if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_SPACE:  # スペースキーで次に進む
+                if event.key == pygame.K_RETURN:
                     waiting = False
 
 def show_instructions_screen():
@@ -258,52 +306,71 @@ def show_instructions_screen():
     bg_y = (screen_height - bg_height) // 2
     screen.blit(start_background_image, (bg_x, bg_y))
 
+    # 薄暗いレイヤーを追加
+    dark_overlay = pygame.Surface((screen_width, screen_height))
+    dark_overlay.set_alpha(120)  # 透明度（0〜255）
+    dark_overlay.fill((0, 0, 0))  # 黒いレイヤー
+    screen.blit(dark_overlay, (0, 0))
+
     # 「ゲームの遊び方」のタイトル
-    title_font = pygame.font.SysFont("meiryo", 50, bold=True)  # 大きなフォント
+    title_font = pygame.font.SysFont("meiryo", 60, bold=True)  # 大きなフォント
     title_text = title_font.render("ゲームの遊び方", True, WHITE)
-    screen.blit(title_text, (screen_width // 2 - title_text.get_width() // 2, screen_height // 8))
+    screen.blit(title_text, (screen_width // 2 - title_text.get_width() // 2, screen_height // 12))
 
-    # 説明文のリスト（中央寄せ用）
+    # 説明文のリスト
     instructions = [
-        "1. 欲しいプレゼントを家に届けよう",
-        "2. 各プレゼントに対応するキーを投げよう",
+        "1. 家の欲しいプレゼントを見極めて、正しく届けよう！",
+        "2. 欲しいプレゼントは家の上に表示されるよ。",
+        "3. キーボードで対応するキーを押して投げてね！",
     ]
 
-    # プレゼント選択肢
-    options = [
-        ("- 1: ゲーム", game_image),
-        ("- 2: 洋服", clothes_image),
-        ("- 3: 漫画", comic_image),
-    ]
+    # 描画開始位置（中央に寄せるための計算）
+    text_y = screen_height // 6 + 60
+    instruction_font = pygame.font.SysFont("meiryo", 28)  # 通常サイズの白フォント
 
     # 説明文の描画（中央寄せ）
-    text_y = screen_height // 4
-    font_to_use = pygame.font.SysFont("meiryo", 24)  # 通常サイズの白フォント
     for line in instructions:
-        text = font_to_use.render(line, True, WHITE)
+        text = instruction_font.render(line, True, WHITE)
         screen.blit(text, (screen_width // 2 - text.get_width() // 2, text_y))
-        text_y += 50
+        text_y += 50  # 行間を空ける
 
-    # 選択肢の描画
-    for line, image in options:
-        text = font_to_use.render(line, True, WHITE)
-        text_x = screen_width // 2 - text.get_width() // 2
-        screen.blit(text, (text_x, text_y))
+    # プレゼント選択肢を横に並べて表示
+    options = [
+        ("１：ゲーム", game_image),
+        ("２：洋服", clothes_image),
+        ("３：漫画", comic_image),
+    ]
 
-        # 画像をテキストの右に配置
-        image_scaled = pygame.transform.scale(image, (50, 50))
-        screen.blit(image_scaled, (text_x + text.get_width() + 20, text_y - 10))
-        text_y += 60
+    # 横並びの配置設定
+    option_spacing = 180  # 各選択肢の間隔
+    start_x = (screen_width - (len(options) * option_spacing)) // 2  # 横方向の開始位置
+    option_y = text_y + 50  # プレゼントの選択肢を表示するY座標
 
-    # 制限時間の表示
-    time_text = font_to_use.render("3. 制限時間: 60秒", True, WHITE)
-    screen.blit(time_text, (screen_width // 2 - time_text.get_width() // 2, text_y))
+    for i, (text, image) in enumerate(options):
+        # 各選択肢のX座標を計算
+        option_x = start_x + i * option_spacing
+
+        # テキストを描画
+        option_font = pygame.font.SysFont("meiryo", 24, bold=True)
+        option_text = option_font.render(text, True, WHITE)
+        text_x = option_x + (option_spacing // 2 - option_text.get_width() // 2)  # テキストを中央揃え
+        screen.blit(option_text, (text_x, option_y + 60))
+
+        # 画像をテキストの上に描画
+        image_scaled = pygame.transform.scale(image, (70, 70))
+        image_x = option_x + (option_spacing // 2 - image_scaled.get_width() // 2)  # 画像を中央揃え
+        screen.blit(image_scaled, (image_x, option_y - 20))  # 画像のY座標を調整
+
+    # 制限時間の説明
+    time_font = pygame.font.SysFont("meiryo", 28, bold=True)
+    time_text = time_font.render("制限時間: 60秒", True, WHITE)
+    screen.blit(time_text, (screen_width // 2 - time_text.get_width() // 2, option_y + 140))
 
     # スタートメッセージ
-    start_text = pygame.font.SysFont("meiryo", 30, bold=True).render(
+    start_text = pygame.font.SysFont("meiryo", 32, bold=True).render(
         "Enterキーで開始", True, RED
     )
-    screen.blit(start_text, (screen_width // 2 - start_text.get_width() // 2, text_y + 80))
+    screen.blit(start_text, (screen_width // 2 - start_text.get_width() // 2, screen_height - 50))
 
     # 描画を反映
     pygame.display.flip()
@@ -321,9 +388,10 @@ def show_instructions_screen():
 
 
 
-# メインゲーム
+
+
 def main_game():
-    global score,santa_is_throwing, santa_rotation_angle, throw_start_time
+    global score, santa_is_throwing, santa_rotation_angle, throw_start_time
     start_ticks = pygame.time.get_ticks()
     running = True
     while running:
@@ -346,14 +414,13 @@ def main_game():
                 item_start_x = santa_x + santa_image.get_width() - 20  # サンタ画像の右端付近
                 item_start_y = santa_y + santa_image.get_height() // 2 - 10  # サンタ画像の中央付近
 
-                if event.key in (pygame.K_1, pygame.K_2, pygame.K_3, pygame.K_4):
+                if event.key in (pygame.K_1, pygame.K_2, pygame.K_3):
                     # サンタが投げる動作
                     santa_is_throwing = True
                     santa_rotation_angle = -20  # サンタを少し左に傾ける
                     throw_start_time = pygame.time.get_ticks()  # 投げ動作の開始時間
 
                     # 投げるアイテムを生成
-                    # キー入力処理の変更
                     if event.key == pygame.K_1:
                         items.append(Item(item_start_x, item_start_y, game_image, "game"))
                     elif event.key == pygame.K_2:
@@ -363,7 +430,6 @@ def main_game():
 
                     # 効果音を再生
                     present_sound.play()
-
 
         if random.randint(0, 100) < 5:
             generate_house()
@@ -395,6 +461,7 @@ def main_game():
             if house in houses:
                 houses.remove(house)
 
+        # サンタの描画処理
         if santa_is_throwing:
             rotated_santa_image = pygame.transform.rotate(santa_image, santa_rotation_angle)
             rotated_rect = rotated_santa_image.get_rect(center=(santa_x + santa_image.get_width() // 2, santa_y + santa_image.get_height() // 2))
@@ -406,7 +473,29 @@ def main_game():
         else:
             screen.blit(santa_image, (santa_x, santa_y))
 
+        # プレゼントの選択肢を右上に表示
+        option_font = pygame.font.SysFont("meiryo", 24, bold=True)
+        options = [
+            ("1 :  ", game_image),
+            ("2 :  ", clothes_image),
+            ("3 :  ", comic_image),
+        ]
 
+        # オプション描画の開始位置
+        option_x = screen_width - 150  # 右端から少し離した位置
+        option_y = 20  # 上端から少し下がった位置
+        option_spacing = 70  # 各選択肢の縦方向の間隔
+
+        for i, (number, image) in enumerate(options):
+            # 番号テキストの描画
+            text = option_font.render(number, True, WHITE)
+            screen.blit(text, (option_x, option_y + i * option_spacing))
+
+            # 画像の描画
+            image_scaled = pygame.transform.scale(image, (40, 40))
+            screen.blit(image_scaled, (option_x + 50, option_y + i * option_spacing))
+
+        # タイマーとスコアの表示
         time_text = font.render(f"[Time]: {remaining_time}", True, WHITE)
         score_text = font.render(f"[Score]: {score}", True, WHITE)
         screen.blit(time_text, (10, 10))
@@ -416,6 +505,7 @@ def main_game():
         pygame.time.Clock().tick(60)
 
     game_over_screen()
+
 
 def game_over_screen():
     global score
