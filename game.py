@@ -35,9 +35,6 @@ try:
     santa_image = pygame.image.load(os.path.join(images_dir, 'santa.png'))
     santa_image = pygame.transform.scale(santa_image, (200, 200))
 
-    toy_image = pygame.image.load(os.path.join(images_dir, 'toy.png'))  # おもちゃ
-    toy_image = pygame.transform.scale(toy_image, (50, 50))
-
     comic_image = pygame.image.load(os.path.join(images_dir, 'comic.png'))  # 漫画
     comic_image = pygame.transform.scale(comic_image, (50, 50))
 
@@ -79,7 +76,6 @@ santa_y = 200
 
 # プレゼントの種類
 PRESENT_TYPES = {
-    "toy": toy_image,
     "comic": comic_image,
     "clothes": clothes_image,
     "game": game_image
@@ -137,9 +133,21 @@ class House:
         self.x -= 3
 
     def draw(self, screen):
+        # 家の画像を描画
         screen.blit(self.image, (self.x, self.y))
-        text = font.render(self.want, True, WHITE)  # 欲しいプレゼントを表示
-        screen.blit(text, (self.x + 5, self.y - 20))
+
+        # 吹き出しの描画
+        bubble_width = 60
+        bubble_height = 60
+        bubble_x = self.x + self.image.get_width() // 2 - bubble_width // 2
+        bubble_y = self.y - bubble_height - 10
+        pygame.draw.ellipse(screen, WHITE, (bubble_x, bubble_y, bubble_width, bubble_height))
+        pygame.draw.ellipse(screen, BLACK, (bubble_x, bubble_y, bubble_width, bubble_height), 2)
+
+        # 欲しいプレゼントの画像を吹き出し内に描画
+        want_image = PRESENT_TYPES[self.want]
+        want_image_scaled = pygame.transform.scale(want_image, (40, 40))
+        screen.blit(want_image_scaled, (bubble_x + 10, bubble_y + 10))
 
 # 家の生成
 def generate_house():
@@ -216,7 +224,7 @@ def show_ranking_screen():
 
     # ランキングの表示
     scores = load_scores()
-    title_text = font.render("ランキング", True, RED)
+    title_text = font.render("ランキング", True, WHITE)
     screen.blit(title_text, (screen_width // 2 - title_text.get_width() // 2, screen_height // 4))
 
     rank_text_y = screen_height // 4 + 50
@@ -226,8 +234,8 @@ def show_ranking_screen():
         screen.blit(text, (screen_width // 2 - text.get_width() // 2, rank_text_y))
         rank_text_y += 40
 
-    next_text = font.render("スペースキーで次へ進む", True, RED)
-    screen.blit(next_text, (screen_width // 2 - next_text.get_width() // 2, screen_height - 100))
+    next_text = font.render("スペースキーで次へ進む", True, WHITE)
+    screen.blit(next_text, (screen_width // 2 - next_text.get_width() // 2, screen_height - 150))
 
     # 描画を反映
     pygame.display.flip()
@@ -250,25 +258,52 @@ def show_instructions_screen():
     bg_y = (screen_height - bg_height) // 2
     screen.blit(start_background_image, (bg_x, bg_y))
 
-    # 説明文のリスト
+    # 「ゲームの遊び方」のタイトル
+    title_font = pygame.font.SysFont("meiryo", 50, bold=True)  # 大きなフォント
+    title_text = title_font.render("ゲームの遊び方", True, WHITE)
+    screen.blit(title_text, (screen_width // 2 - title_text.get_width() // 2, screen_height // 8))
+
+    # 説明文のリスト（中央寄せ用）
     instructions = [
-        "ゲームの遊び方:",
         "1. 欲しいプレゼントを家に届けよう",
         "2. 各プレゼントに対応するキーを投げよう",
-        "        - 1: おもちゃ",
-        "        - 2: 漫画",
-        "        - 3: 洋服",
-        "        - 4: ゲーム",
-        "3. 制限時間: 60秒",
     ]
-    text_y = screen_height // 2 - 150  # 白い部分の中央を基準に調整
-    for line in instructions:
-        text = font.render(line, True, BLACK)  # 黒文字で描画
-        screen.blit(text, (300, text_y))
-        text_y += 30
 
-    start_text = font.render("Enterキーで開始", True, RED)
-    screen.blit(start_text, (400, text_y + 20))
+    # プレゼント選択肢
+    options = [
+        ("- 1: ゲーム", game_image),
+        ("- 2: 洋服", clothes_image),
+        ("- 3: 漫画", comic_image),
+    ]
+
+    # 説明文の描画（中央寄せ）
+    text_y = screen_height // 4
+    font_to_use = pygame.font.SysFont("meiryo", 24)  # 通常サイズの白フォント
+    for line in instructions:
+        text = font_to_use.render(line, True, WHITE)
+        screen.blit(text, (screen_width // 2 - text.get_width() // 2, text_y))
+        text_y += 50
+
+    # 選択肢の描画
+    for line, image in options:
+        text = font_to_use.render(line, True, WHITE)
+        text_x = screen_width // 2 - text.get_width() // 2
+        screen.blit(text, (text_x, text_y))
+
+        # 画像をテキストの右に配置
+        image_scaled = pygame.transform.scale(image, (50, 50))
+        screen.blit(image_scaled, (text_x + text.get_width() + 20, text_y - 10))
+        text_y += 60
+
+    # 制限時間の表示
+    time_text = font_to_use.render("3. 制限時間: 60秒", True, WHITE)
+    screen.blit(time_text, (screen_width // 2 - time_text.get_width() // 2, text_y))
+
+    # スタートメッセージ
+    start_text = pygame.font.SysFont("meiryo", 30, bold=True).render(
+        "Enterキーで開始", True, RED
+    )
+    screen.blit(start_text, (screen_width // 2 - start_text.get_width() // 2, text_y + 80))
 
     # 描画を反映
     pygame.display.flip()
@@ -283,6 +318,7 @@ def show_instructions_screen():
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_RETURN:  # Enterキーでゲーム開始
                     waiting = False
+
 
 
 # メインゲーム
@@ -317,14 +353,13 @@ def main_game():
                     throw_start_time = pygame.time.get_ticks()  # 投げ動作の開始時間
 
                     # 投げるアイテムを生成
+                    # キー入力処理の変更
                     if event.key == pygame.K_1:
-                        items.append(Item(item_start_x, item_start_y, toy_image, "toy"))
-                    elif event.key == pygame.K_2:
-                        items.append(Item(item_start_x, item_start_y, comic_image, "comic"))
-                    elif event.key == pygame.K_3:
-                        items.append(Item(item_start_x, item_start_y, clothes_image, "clothes"))
-                    elif event.key == pygame.K_4:
                         items.append(Item(item_start_x, item_start_y, game_image, "game"))
+                    elif event.key == pygame.K_2:
+                        items.append(Item(item_start_x, item_start_y, clothes_image, "clothes"))
+                    elif event.key == pygame.K_3:
+                        items.append(Item(item_start_x, item_start_y, comic_image, "comic"))
 
                     # 効果音を再生
                     present_sound.play()
