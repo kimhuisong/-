@@ -64,7 +64,6 @@ try:
 except pygame.error as e:
     print(f"効果音の読み込みに失敗しました: {e}")
     sys.exit()
-
 #効果音の読み込み
 try:
     present_sound = pygame.mixer.Sound(os.path.join(music_dir,'throw.wav'))
@@ -308,69 +307,65 @@ def show_instructions_screen():
 
     # 薄暗いレイヤーを追加
     dark_overlay = pygame.Surface((screen_width, screen_height))
-    dark_overlay.set_alpha(120)  # 透明度（0〜255）
+    dark_overlay.set_alpha(100)  # 透明度（0〜255）
     dark_overlay.fill((0, 0, 0))  # 黒いレイヤー
     screen.blit(dark_overlay, (0, 0))
 
     # 「ゲームの遊び方」のタイトル
-    title_font = pygame.font.SysFont("meiryo", 60, bold=True)  # 大きなフォント
-    title_text = title_font.render("ゲームの遊び方", True, WHITE)
-    screen.blit(title_text, (screen_width // 2 - title_text.get_width() // 2, screen_height // 12))
+    title_font = pygame.font.SysFont("meiryo", 50, bold=True)
+    title_text = title_font.render("🎄 ゲームの遊び方 🎄", True, WHITE)
+    screen.blit(title_text, (screen_width // 2 - title_text.get_width() // 2, screen_height // 10))
 
-    # 説明文のリスト
+    # 説明文リスト
     instructions = [
-        "1. 家の欲しいプレゼントを見極めて、正しく届けよう！",
-        "2. 欲しいプレゼントは家の上に表示されるよ。",
-        "3. キーボードで対応するキーを押して投げてね！",
+        "★ ゲームの目的:",
+        "   欲しいプレゼントを家に届けてスコアを稼ごう！",
+        "",
+        "●  操作方法:",
+        "   下の番号を押してプレゼントを選んで投げよう！",
     ]
 
-    # 描画開始位置（中央に寄せるための計算）
-    text_y = screen_height // 6 + 60
-    instruction_font = pygame.font.SysFont("meiryo", 28)  # 通常サイズの白フォント
+    # 描画開始位置
+    text_y = screen_height // 5
+    font_to_use = pygame.font.SysFont("meiryo", 24)
 
-    # 説明文の描画（中央寄せ）
+    # 説明文の描画（中央揃え）
     for line in instructions:
-        text = instruction_font.render(line, True, WHITE)
+        text = font_to_use.render(line, True, WHITE)
         screen.blit(text, (screen_width // 2 - text.get_width() // 2, text_y))
-        text_y += 50  # 行間を空ける
+        text_y += 40
 
     # プレゼント選択肢を横に並べて表示
     options = [
-        ("１：ゲーム", game_image),
-        ("２：洋服", clothes_image),
-        ("３：漫画", comic_image),
+        ("1: ゲーム", game_image),
+        ("2: 洋服", clothes_image),
+        ("3: 漫画", comic_image),
     ]
 
     # 横並びの配置設定
-    option_spacing = 180  # 各選択肢の間隔
-    start_x = (screen_width - (len(options) * option_spacing)) // 2  # 横方向の開始位置
-    option_y = text_y + 50  # プレゼントの選択肢を表示するY座標
+    option_spacing = 150  # 各選択肢の間隔
+    start_x = (screen_width - (len(options) * option_spacing)) // 2
+    option_y = text_y + 40  # プレゼントの選択肢を表示するY座標
 
     for i, (text, image) in enumerate(options):
-        # 各選択肢のX座標を計算
         option_x = start_x + i * option_spacing
 
         # テキストを描画
-        option_font = pygame.font.SysFont("meiryo", 24, bold=True)
-        option_text = option_font.render(text, True, WHITE)
-        text_x = option_x + (option_spacing // 2 - option_text.get_width() // 2)  # テキストを中央揃え
-        screen.blit(option_text, (text_x, option_y + 60))
+        option_text = font_to_use.render(text, True, WHITE)
+        screen.blit(option_text, (option_x + 10, option_y + 50))
 
-        # 画像をテキストの上に描画
-        image_scaled = pygame.transform.scale(image, (70, 70))
-        image_x = option_x + (option_spacing // 2 - image_scaled.get_width() // 2)  # 画像を中央揃え
-        screen.blit(image_scaled, (image_x, option_y - 20))  # 画像のY座標を調整
+        # 画像を描画
+        image_scaled = pygame.transform.scale(image, (50, 50))
+        screen.blit(image_scaled, (option_x + 25, option_y))
 
     # 制限時間の説明
-    time_font = pygame.font.SysFont("meiryo", 28, bold=True)
-    time_text = time_font.render("制限時間: 60秒", True, WHITE)
-    screen.blit(time_text, (screen_width // 2 - time_text.get_width() // 2, option_y + 140))
+    time_font = pygame.font.SysFont("meiryo", 30, bold=True)
+    time_text = time_font.render("⏳ 制限時間: 60秒", True, WHITE)
+    screen.blit(time_text, (screen_width // 2 - time_text.get_width() // 2, option_y + 120))
 
     # スタートメッセージ
-    start_text = pygame.font.SysFont("meiryo", 32, bold=True).render(
-        "Enterキーで開始", True, RED
-    )
-    screen.blit(start_text, (screen_width // 2 - start_text.get_width() // 2, screen_height - 50))
+    start_text = time_font.render("Enterキーで開始", True, RED)
+    screen.blit(start_text, (screen_width // 2 - start_text.get_width() // 2, option_y + 180))
 
     # 描画を反映
     pygame.display.flip()
@@ -385,6 +380,7 @@ def show_instructions_screen():
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_RETURN:  # Enterキーでゲーム開始
                     waiting = False
+
 
 
 
